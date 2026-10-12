@@ -1,125 +1,102 @@
-# 📸 Instagram Scraper & Auto Downloader (Termux Edition)
+# 🌟 Universal & Instagram Hybrid Downloader (Termux Edition)
 
 ![Python](https://img.shields.io/badge/Python-3.x-blue.svg?style=for-the-badge&logo=python&logoColor=white)
+![yt-dlp](https://img.shields.io/badge/Engine-yt--dlp-red.svg?style=for-the-badge&logo=youtube&logoColor=white)
 ![Selenium](https://img.shields.io/badge/Selenium-WebDriver-43B02A.svg?style=for-the-badge&logo=selenium&logoColor=white)
 ![Termux](https://img.shields.io/badge/Platform-Termux-black.svg?style=for-the-badge&logo=android&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-lightgrey.svg?style=for-the-badge)
 
 > [!WARNING]
 > ### ⚠️ Peringatan Hukum & Penggunaan
-> **Gunakan dengan Bijak!** Mengunduh dan mendistribusikan ulang konten tanpa izin dari pemilik hak cipta dapat melanggar hukum serta kebijakan privasi Instagram.
+> **Gunakan dengan Bijak!** Mengunduh dan mendistribusikan ulang konten tanpa izin dari pemilik hak cipta dapat melanggar hukum serta kebijakan privasi masing-masing platform.
 > 
 > Repositori ini dibuat **MURNI UNTUK TUJUAN EDUKASI DAN UJI COBA KECERDASAN BUATAN (AI)**. Pengembang tidak bertanggung jawab atas segala bentuk penyalahgunaan skrip ini atau tindakan hukum yang mungkin timbul akibat penggunaannya. Risiko ditanggung sepenuhnya oleh pengguna.
 
-Sebuah *tool* otomasi kelas profesional berbasis Python yang dirancang khusus untuk berjalan lancar di lingkungan **Termux (Android)**. Skrip ini memadukan kekuatan **Selenium (Headless Chromium)** untuk *scraping* profil dinamis dan **Instaloader** untuk mengekstrak media kualitas tinggi, dilengkapi dengan sistem *Anti-Bot Bypass*.
+Tool otomasi *all-in-one* berbasis Python yang dirancang khusus untuk berjalan super lancar di lingkungan **Termux (Android)**. Kini hadir dengan arsitektur **Hybrid**: memadukan mesin **yt-dlp** (untuk unduh kilat dari 1.000+ situs web seperti YouTube, TikTok tanpa watermark, Facebook, Twitter/X, Pinterest, Reddit, dll) dan **Selenium + Instaloader** untuk *mass scrape* profil & carousel Instagram!
 
 ---
 
 ## ✨ Fitur Utama
 
-- **🛡️ Advanced Anti-Bot**: Menginjeksi HTTP Headers khusus (`X-IG-App-ID`, `X-ASBD-ID`, dll) untuk meniru sesi browser Chrome asli, secara efektif melewati blokir `403 Forbidden` dari server Instagram.
-- **🍪 Persistent Smart Session**: Tidak perlu login berulang kali. Cukup masukkan file `cookies.json` dari ekstensi browser Anda, dan sesi akan terus tersimpan dengan aman.
-- **🗂️ Auto-Directory Organizer**: Hasil unduhan tidak akan berantakan! Skrip otomatis membuat folder berdasarkan **Username**. Untuk postingan *Carousel*, skrip akan membuat sub-folder tambahan berdasarkan *shortcode* postingan.
-- **🤖 Termux Optimized**: Dikonfigurasi khusus dengan argumen Chromium *headless* (seperti `--disable-dev-shm-usage`, `--no-sandbox`) agar sangat ringan dan stabil di RAM perangkat Android Anda.
-- **🔄 Full Carousel Download**: Mampu mengunduh **SELURUH** *slide* foto dan video dalam satu postingan *carousel* tanpa ada yang terlewat.
+- **⚡ Universal Auto-Detection**: Tempel link apa saja (YouTube, TikTok, Twitter/X, Facebook, Reddit, Pinterest, Threads, dll), sistem otomatis mendeteksi platform dan langsung mengunduh dengan kualitas terbaik.
+- **🚀 Fast & Light (Tanpa Browser)**: Unduhan media tunggal menggunakan engine `yt-dlp` tanpa perlu menyalakan Chromium Selenium, sehingga sangat cepat, hemat kuota RAM, dan anti-lag di Android.
+- **🎬 High Quality + FFmpeg Support**: Otomatis menggabungkan video & audio resolusi tertinggi (1080p, 2K, 4K) ke format `.mp4`.
+- **📸 Instagram Deep Scraper**: Tetap mendukung *scraping* feed massal Instagram dengan Selenium Headless Chromium dan download seluruh slide foto/video (*Carousel*) via Instaloader.
+- **🍪 Smart Cookie Session**: Cookie hanya diminta jika Anda menggunakan fitur Instagram yang membutuhkannya (misal scrape profil atau post privat). Untuk unduh YouTube, TikTok, dll, bisa langsung jalan tanpa login!
+- **🗂️ Auto-Directory Organizer**: Output unduhan otomatis dikelompokkan rapi ke dalam folder masing-masing platform (misal `downloads/YouTube/`, `downloads/TikTok/`, `downloads/Instagram/`).
 
 ---
 
-## 🚀 3 Mode Operasi Cerdas
+## 🚀 Pilihan Mode Interaktif
 
-Skrip ini sangat interaktif dan fleksibel. Saat dijalankan, Anda bisa memilih mode berikut:
+Saat dijalankan, Anda bisa memilih mode atau **bisa langsung menempelkan tautan (paste link)** di menu awal:
 
-| Mode | Nama | Deskripsi | Penggunaan Selenium |
-| :--- | :--- | :--- | :---: |
-| **1** | **Single Download** | Unduh cepat dari 1 link URL (*Reels/Post*). Skrip mendeteksi pemilik otomatis. | ❌ Tidak |
-| **2** | **Light Mode** | Mengambil ~12 postingan terbaru dari profil. Cepat, hemat RAM, tanpa proses *scroll*. | ✅ Ya (Singkat) |
-| **3** | **Full Scrape** | Mode mendalam. *Scroll* profil secara kustom untuk mengambil ratusan postingan lama. | ✅ Ya (Penuh) |
+| Pilihan | Nama | Keterangan | Kebutuhan Selenium / Cookie |
+| :---: | :--- | :--- | :---: |
+| **Direct Paste** | **Smart Auto-Detect** | Langsung tempel URL apa saja di prompt menu utama. | Otomatis sesuai platform |
+| **1** | **Universal Downloader** | Unduh video/audio dari YouTube, TikTok, FB, X, IG, dll. | ❌ Tidak perlu |
+| **2** | **IG Profile (Light)** | Mengambil ~12 postingan terbaru dari profil Instagram. | ✅ Ya (Headless Chromium) |
+| **3** | **IG Profile (Full)** | Scrape mendalam dengan custom scroll halaman profil Instagram. | ✅ Ya (Headless Chromium) |
 
 ---
 
 ## 🛠️ Persiapan Lingkungan (Termux)
 
 ### 1. Update & Install Dependencies Sistem
-Pastikan paket dasar Termux dan *binary* Chromium sudah terinstal:
+Pastikan paket dasar Termux, FFmpeg, dan Chromium sudah terpasang:
 
 ```bash
 pkg update && pkg upgrade -y
-pkg install python chromium
+pkg install python ffmpeg chromium -y
 ```
 
 ### 2. Instalasi Pustaka Python
 Arahkan terminal ke folder proyek ini, lalu instal dependensi Python:
 
 ```bash
-cd IgDownloader
 pip install -r requirements.txt
 ```
 
 ---
 
-## 🔑 Konfigurasi Wajib: Sesi Cookie
-
-Agar dapat mengakses Instagram (terutama profil privat dan menghindari blokir API), Anda wajib menyiapkan sesi Cookie.
-
-1. Buka Instagram melalui *browser* **Chrome/Kiwi** di HP atau PC Anda.
-2. Login ke akun Anda (Sangat disarankan menggunakan akun cadangan/tumbal).
-3. Gunakan ekstensi seperti **[EditThisCookie](https://chrome.google.com/webstore/detail/editthiscookie/fngmhnnpilhplaeedifhccceomclgfbg)**.
-4. Klik *Export* untuk menyalin cookie dalam format **JSON** ke *clipboard*.
-
----
-
 ## 💻 Cara Penggunaan
 
-Jalankan skrip utama menggunakan Python:
+Jalankan skrip utama:
 
 ```bash
 python main.py
 ```
 
-### Inisialisasi Pertama Kali:
-Jika file `cookies.json` belum ada, terminal akan meminta Anda untuk menempelkan teks JSON yang sudah disalin:
-1. *Paste* JSON Cookie di terminal Termux.
-2. Tekan **Enter**.
-3. Tekan **Ctrl + D** (Gunakan tombol `Ctrl` di atas *keyboard* Termux, lalu sentuh huruf `D`).
-4. Cookie berhasil disimpan! Skrip akan melanjutkan prosesnya.
+### Contoh Penggunaan:
+1. **Unduh Video TikTok / YouTube / Twitter**: Cukup jalankan `python main.py`, lalu tempel link video. File akan otomatis tersimpan di folder `downloads/TikTok/` atau `downloads/YouTube/`.
+2. **Unduh Profil Instagram**: Masukkan pilihan `2` atau `3`, lalu ketik username target. Skrip akan memproses postingan target.
 
 ---
 
 ## 📂 Struktur Output Direktori
 
-Tidak perlu merapikan manual, skrip akan menyusun file Anda secara otomatis seperti ini:
+File unduhan tersimpan langsung di folder **Download** memori internal HP Anda (`/storage/emulated/0/Download`) sehingga langsung muncul di Galeri / File Manager Android:
 
 ```text
-IgDownloader/
-├── main.py
-├── cookies.json                  <-- File rahasia sesi Anda (Diabaikan oleh Git)
-├── 📁 username_target_1/
-│   ├── ABC123xyz_single.jpg      <-- Postingan 1 foto
-│   ├── DEF456abc_single.mp4      <-- Reels / Video
-│   └── 📁 DONr_iYie6m/           <-- Folder khusus Postingan Carousel
-│       ├── slide_1.jpg
-│       ├── slide_2.mp4
-│       └── slide_3.jpg
-└── 📁 username_target_2/
-    └── ...
+/storage/emulated/0/Download/
+├── YouTube/                  <-- Unduhan video YouTube / Shorts
+├── TikTok/                   <-- Unduhan video TikTok tanpa watermark
+├── Twitter_X/                <-- Unduhan media Twitter/X
+├── Facebook/                 <-- Unduhan Facebook video/reels
+└── Instagram/                <-- Unduhan Instagram
+    ├── username_target_1/    <-- Hasil scrape postingan & carousel per akun
+    │   └── shortcode_carousel/
+    └── username_target_2/
 ```
 
 ---
 
 ## 💡 Troubleshooting & Tips
 
-*   **Error `429 / 403 Forbidden`**: Ini menandakan Instagram membatasi (*rate-limit*) akun/IP Anda karena terlalu banyak *request*. Solusi: Beri jeda waktu, ganti jaringan internet, atau gunakan akun tumbal yang lain.
-*   **Aman dari Git Push**: File `cookies.json` sudah didaftarkan ke dalam `.gitignore`. Jangan pernah secara sengaja mengunggah kredensial cookie Anda ke repositori publik!
-*   **Browser Crash/Gagal Membuka Profil**: Pastikan penyimpanan internal HP Anda masih lega dan tutup aplikasi latar belakang lain saat menjalankan **Mode 3** untuk menghindari kehabisan RAM.
+*   **Error `429 / 403 Forbidden` di Instagram**: Gunakan sesi login dengan menyiapkan file `cookies.json` dari browser Chrome/Kiwi (ekstensi EditThisCookie).
+*   **Audio & Video Terpisah**: Pastikan paket `ffmpeg` terinstal di Termux (`pkg install ffmpeg -y`).
+*   **Keluar dari Program**: Ketik `0` di menu utama atau tekan tombol `Ctrl + C`.
 
 ---
-
-## 🤝 Kontribusi & Kredit
-
-Proyek otomasi ini dikembangkan untuk tujuan eksperimen *Web Scraping* dan pengelolaan data.
-
-**🤖 Special Thanks:**
-Dikembangkan dan disempurnakan dengan kolaborasi kecerdasan buatan:
-*   **Gemini AI (Google)** - Membantu menangani logika integrasi Selenium-Instaloader, optimasi ekstraksi elemen DOM, penulisan *bypass header*, dan penyusunan dokumentasi profesional ini.
 
 *License: MIT | Author: Amin Maskur*

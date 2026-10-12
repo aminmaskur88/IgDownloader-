@@ -1,3 +1,10 @@
 cookies.json
 __pycache__/
 *.pyc
+downloads/
+*.mp4
+*.jpg
+*.jpeg
+*.png
+*.webm
+*.mp3
