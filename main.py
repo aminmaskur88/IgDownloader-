@@ -5,6 +5,7 @@ import requests
 import json
 import re
 import shutil
+import subprocess
 from urllib.parse import urlparse
 from bs4 import BeautifulSoup
 import yt_dlp
@@ -249,30 +250,127 @@ def get_shortcode_from_url(url):
 # 2. UNIVERSAL DOWNLOAD ENGINE (yt-dlp + ffmpeg)
 # ==============================================================================
 
+def check_video_codecs(file_path):
+    """Mendapatkan nama codec video dan audio dari file menggunakan ffprobe."""
+    ffprobe_path = shutil.which('ffprobe') or '/data/data/com.termux/files/usr/bin/ffprobe'
+    if not os.path.exists(ffprobe_path) and not shutil.which('ffprobe'):
+        return None, None
+    try:
+        cmd_v = [
+            ffprobe_path, '-v', 'error',
+            '-select_streams', 'v:0',
+            '-show_entries', 'stream=codec_name',
+            '-of', 'default=noprint_wrappers=1:nokey=1',
+            file_path
+        ]
+        res_v = subprocess.run(cmd_v, capture_output=True, text=True, timeout=10)
+        vcodec = res_v.stdout.strip().lower()
+
+        cmd_a = [
+            ffprobe_path, '-v', 'error',
+            '-select_streams', 'a:0',
+            '-show_entries', 'stream=codec_name',
+            '-of', 'default=noprint_wrappers=1:nokey=1',
+            file_path
+        ]
+        res_a = subprocess.run(cmd_a, capture_output=True, text=True, timeout=10)
+        acodec = res_a.stdout.strip().lower()
+        return vcodec, acodec
+    except Exception:
+        return None, None
+
+
+def ensure_social_ready(file_path):
+    """
+    Mengonversi video ke format standar H.264 (AVC) + AAC MP4 (+faststart)
+    agar dijamin 100% bisa di-post di Instagram, WhatsApp, TikTok, FB, dll.
+    """
+    if not file_path or not os.path.exists(file_path):
+        return file_path
+
+    vcodec, acodec = check_video_codecs(file_path)
+    # Jika sudah H.264 dan AAC, tidak perlu di-transcode (langsung siap!)
+    if vcodec == 'h264' and (acodec == 'aac' or not acodec):
+        return file_path
+
+    ffmpeg_path = get_ffmpeg_path()
+    if not ffmpeg_path:
+        return file_path
+
+    print(f"\n[🔄 OPTIMASI CODEC SOSMED] Codec asal: Video={vcodec}, Audio={acodec}")
+    print("    Instagram & WhatsApp mewajibkan video H.264 (AVC) dan audio AAC.")
+    print("    Mengonversi otomatis agar siap diposting & dikirim...", end=" ", flush=True)
+
+    base, ext = os.path.splitext(file_path)
+    temp_out = base + "_social.mp4"
+
+    cmd = [ffmpeg_path, '-y', '-i', file_path]
+
+    # Video: Jika bukan h264, transcode ke libx264 dengan pixel format yuv420p
+    if vcodec != 'h264':
+        cmd.extend(['-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '22', '-pix_fmt', 'yuv420p'])
+    else:
+        cmd.extend(['-c:v', 'copy'])
+
+    # Audio: Jika bukan aac, transcode ke aac 192k
+    if acodec != 'aac':
+        cmd.extend(['-c:a', 'aac', '-b:a', '192k'])
+    else:
+        cmd.extend(['-c:a', 'copy'])
+
+    cmd.extend(['-movflags', '+faststart', temp_out])
+
+    try:
+        res = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
+        if res.returncode == 0 and os.path.exists(temp_out) and os.path.getsize(temp_out) > 0:
+            final_path = base + ".mp4"
+            if os.path.exists(file_path) and file_path != final_path:
+                try:
+                    os.remove(file_path)
+                except Exception:
+                    pass
+            os.replace(temp_out, final_path)
+            print("SELESAI! ✓ (Format: H.264/AAC MP4)")
+            return final_path
+        else:
+            if os.path.exists(temp_out):
+                os.remove(temp_out)
+            print("Gagal optimasi, menggunakan file asli.")
+            return file_path
+    except Exception as e:
+        if os.path.exists(temp_out):
+            try:
+                os.remove(temp_out)
+            except Exception:
+                pass
+        print(f"Bypass optimasi ({e})")
+        return file_path
+
+
 YOUTUBE_QUALITY_PRESETS = {
     '1': {
-        'label': '1080p (Full HD - Rekomendasi)',
-        'format': 'bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1080]+bestaudio/bestvideo[width<=1080]+bestaudio/best[height<=1080]/best',
+        'label': '1080p (Full HD - Siap Post IG/WA)',
+        'format': 'bestvideo[height<=1080][vcodec^=avc1]+bestaudio[acodec^=mp4a]/bestvideo[height<=1080][vcodec^=avc1]+bestaudio/bestvideo[width<=1080][vcodec^=avc1]+bestaudio/bestvideo[height<=1080]+bestaudio/bestvideo[width<=1080]+bestaudio/best[height<=1080]/best',
         'is_audio': False,
     },
     '2': {
-        'label': '720p (HD)',
-        'format': 'bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=720]+bestaudio/bestvideo[width<=720]+bestaudio/best[height<=720]/best',
+        'label': '720p (HD - Siap Post IG/WA)',
+        'format': 'bestvideo[height<=720][vcodec^=avc1]+bestaudio[acodec^=mp4a]/bestvideo[height<=720][vcodec^=avc1]+bestaudio/bestvideo[width<=720][vcodec^=avc1]+bestaudio/bestvideo[height<=720]+bestaudio/bestvideo[width<=720]+bestaudio/best[height<=720]/best',
         'is_audio': False,
     },
     '3': {
         'label': '480p (Standar / Hemat Kuota)',
-        'format': 'bestvideo[height<=480][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=480]+bestaudio/bestvideo[width<=480]+bestaudio/best[height<=480]/best',
+        'format': 'bestvideo[height<=480][vcodec^=avc1]+bestaudio[acodec^=mp4a]/bestvideo[height<=480][vcodec^=avc1]+bestaudio/bestvideo[width<=480][vcodec^=avc1]+bestaudio/bestvideo[height<=480]+bestaudio/best[height<=480]/best',
         'is_audio': False,
     },
     '4': {
         'label': '360p (Rendah / Super Hemat)',
-        'format': 'bestvideo[height<=360][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=360]+bestaudio/bestvideo[width<=360]+bestaudio/best[height<=360]/best',
+        'format': 'bestvideo[height<=360][vcodec^=avc1]+bestaudio[acodec^=mp4a]/bestvideo[height<=360][vcodec^=avc1]+bestaudio/bestvideo[width<=360][vcodec^=avc1]+bestaudio/bestvideo[height<=360]+bestaudio/best[height<=360]/best',
         'is_audio': False,
     },
     '5': {
         'label': 'Kualitas Tertinggi (Maksimal / Best Available)',
-        'format': 'bestvideo*+bestaudio/best',
+        'format': 'bestvideo[vcodec^=avc1]+bestaudio[acodec^=mp4a]/bestvideo*+bestaudio/best',
         'is_audio': False,
     },
     '6': {
@@ -288,8 +386,8 @@ def prompt_youtube_quality():
     print("\n" + "="*50)
     print("  🎬 PILIH KUALITAS DOWNLOAD YOUTUBE")
     print("="*50)
-    print(" [1] 1080p (Full HD - Rekomendasi)")
-    print(" [2] 720p (HD)")
+    print(" [1] 1080p (Full HD - Siap Post IG/WA)")
+    print(" [2] 720p (HD - Siap Post IG/WA)")
     print(" [3] 480p (Standar / Hemat Kuota)")
     print(" [4] 360p (Rendah / Super Hemat)")
     print(" [5] Kualitas Tertinggi (Maksimal / Best Available)")
@@ -352,10 +450,10 @@ def download_with_ytdlp(url, output_dir=None, platform_name="Universal", format_
         if is_audio:
             format_spec = 'bestaudio/best'
         else:
-            format_spec = 'best[ext=mp4]/best'
+            format_spec = 'best[vcodec^=avc1][ext=mp4]/best[ext=mp4]/best'
     else:
         if not format_spec:
-            format_spec = 'bestvideo*+bestaudio/best'
+            format_spec = 'bestvideo[vcodec^=avc1]+bestaudio[acodec^=mp4a]/bestvideo*+bestaudio/best'
 
     ydl_opts = {
         'outtmpl': os.path.join(output_dir, '%(title).80B [%(id)s].%(ext)s'),
@@ -393,6 +491,25 @@ def download_with_ytdlp(url, output_dir=None, platform_name="Universal", format_
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(clean_url, download=True)
             title = info.get('title', 'Unknown Title') if info else 'Unknown'
+
+            # Optimasi otomatis ke H.264 + AAC MP4 jika format belum standar sosmed
+            if not is_audio and has_ffmpeg and info:
+                downloaded_file = None
+                if '_filename' in info and os.path.exists(info['_filename']):
+                    downloaded_file = info['_filename']
+                else:
+                    cand = ydl.prepare_filename(info)
+                    if os.path.exists(cand):
+                        downloaded_file = cand
+                    else:
+                        base_cand, _ = os.path.splitext(cand)
+                        for ext in ['.mp4', '.mkv', '.webm']:
+                            if os.path.exists(base_cand + ext):
+                                downloaded_file = base_cand + ext
+                                break
+                if downloaded_file:
+                    ensure_social_ready(downloaded_file)
+
             print("-" * 55)
             print(f"[✓] SUKSES DIDOWNLOAD : {title}")
             print(f"[✓] Tersimpan di      : {output_dir}/")

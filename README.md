@@ -20,6 +20,7 @@ Tool otomasi *all-in-one* berbasis Python yang dirancang khusus untuk berjalan s
 
 - **⚡ Universal Auto-Detection**: Tempel link apa saja (YouTube, TikTok, Twitter/X, Facebook, Reddit, Pinterest, Threads, dll), sistem otomatis mendeteksi platform dan langsung mengunduh dengan kualitas terbaik.
 - **🎬 Selector Kualitas YouTube (1080p FHD)**: Khusus unduhan YouTube (Video & Shorts), tersedia menu pilihan resolusi: **1080p (Full HD)**, **720p (HD)**, **480p**, **360p**, **Kualitas Maksimal**, hingga **Ekstrak Audio MP3**.
+- **📱 100% Siap Post Sosmed (H.264 + AAC MP4)**: Mengutamakan dan otomatis mengonversi video ke codec **H.264 (AVC)** dan audio **AAC** dengan flag `+faststart` agar dijamin **bisa diposting di Instagram (Reel/Story/Feed), dikirim di WhatsApp status/chat, TikTok, FB, dll tanpa error!**
 - **🚀 Fast & Light (Tanpa Browser)**: Unduhan media tunggal menggunakan engine `yt-dlp` tanpa perlu menyalakan Chromium Selenium, sehingga sangat cepat, hemat kuota RAM, dan anti-lag di Android.
 - **🎥 High Quality + FFmpeg Support**: Otomatis menggabungkan video & audio resolusi tinggi (1080p, 2K, 4K) ke format `.mp4` kompatibel galeri Android.
 - **📸 Instagram Deep Scraper**: Tetap mendukung *scraping* feed massal Instagram dengan Selenium Headless Chromium dan download seluruh slide foto/video (*Carousel*) via Instaloader.
