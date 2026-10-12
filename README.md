@@ -94,9 +94,16 @@ File unduhan tersimpan langsung di folder **Download** memori internal HP Anda (
 
 ## 💡 Troubleshooting & Tips
 
-*   **Error `429 / 403 Forbidden` di Instagram**: Gunakan sesi login dengan menyiapkan file `cookies.json` dari browser Chrome/Kiwi (ekstensi EditThisCookie).
-*   **Audio & Video Terpisah**: Pastikan paket `ffmpeg` terinstal di Termux (`pkg install ffmpeg -y`).
-*   **Keluar dari Program**: Ketik `0` di menu utama atau tekan tombol `Ctrl + C`.
+*   **Error `Permission denied` (`/storage/emulated/0/...`)**:
+    Termux di HP tersebut belum diberi izin mengakses memori penyimpanan Android.
+    👉 **Solusi**: Jalankan perintah `termux-setup-storage` di terminal Termux, lalu pilih **Izinkan** (*Allow*) pada kotak dialog Android. Skrip juga otomatis mengalihkan penyimpanan ke folder lokal `downloads/` jika izin belum aktif agar tidak *crash*.
+*   **Error `ffmpeg is not installed` (Gagal Download YouTube / 1080p)**:
+    Untuk menggabungkan video dan audio resolusi tinggi (1080p Full HD) serta mengekstrak MP3, paket FFmpeg wajib terpasang di Termux.
+    👉 **Solusi**: Jalankan perintah `pkg install ffmpeg -y`.
+*   **Error `429 / 403 Forbidden` di Instagram**:
+    Gunakan sesi login dengan menyiapkan file `cookies.json` dari browser Chrome/Kiwi (ekstensi EditThisCookie).
+*   **Keluar dari Program**:
+    Ketik `0` di menu utama atau tekan tombol `Ctrl + C`.
 
 ---
 

@@ -21,24 +21,116 @@ from selenium.common.exceptions import TimeoutException, NoSuchElementException,
 
 
 # ==============================================================================
-# CONFIGURATION & STORAGE PATH
+# CONFIGURATION, STORAGE & SYSTEM CHECKS
 # ==============================================================================
+
+def is_path_writable(path):
+    """Memeriksa apakah direktori benar-benar memiliki izin tulis (write permission) di Android/Termux."""
+    try:
+        os.makedirs(path, exist_ok=True)
+        probe = os.path.join(path, f".perm_probe_{os.getpid()}")
+        with open(probe, "w") as f:
+            f.write("ok")
+        os.remove(probe)
+        return True
+    except Exception:
+        return False
+
 
 def get_base_download_dir():
     """Mendapatkan direktori penyimpanan utama di internal storage Android atau fallback lokal."""
-    android_dir = "/storage/emulated/0/Download"
-    if os.path.exists(android_dir) and os.access(android_dir, os.W_OK):
-        return android_dir
-    try:
-        os.makedirs(android_dir, exist_ok=True)
-        return android_dir
-    except Exception:
-        local_dir = os.path.abspath("downloads")
-        os.makedirs(local_dir, exist_ok=True)
-        return local_dir
+    # 1. Cek ~/storage/shared/Download (shortcut standar termux-setup-storage)
+    termux_shared = os.path.expanduser("~/storage/shared/Download")
+    if is_path_writable(termux_shared):
+        return termux_shared
 
-# Direktori utama hasil download (Folder Download di Internal Storage HP)
+    # 2. Cek path langsung Android internal storage
+    android_dir = "/storage/emulated/0/Download"
+    if is_path_writable(android_dir):
+        return android_dir
+
+    # 3. Fallback ke folder lokal proyek 'downloads/'
+    local_dir = os.path.abspath("downloads")
+    try:
+        os.makedirs(local_dir, exist_ok=True)
+    except Exception:
+        pass
+    return local_dir
+
+
 BASE_DOWNLOAD_DIR = get_base_download_dir()
+
+
+def safe_ensure_dir(target_dir):
+    """
+    Membuat direktori dengan aman. Jika izin Android ditolak (Permission denied),
+    otomatis dialihkan ke folder lokal 'downloads/' tanpa membuat program crash.
+    """
+    try:
+        os.makedirs(target_dir, exist_ok=True)
+        probe = os.path.join(target_dir, f".probe_{os.getpid()}")
+        with open(probe, "w") as f:
+            f.write("ok")
+        os.remove(probe)
+        return target_dir
+    except (PermissionError, OSError):
+        # Ekstrak subfolder relatif (misal 'YouTube', 'TikTok', 'Instagram/username')
+        if "/Download/" in target_dir:
+            sub = target_dir.split("/Download/")[-1]
+        elif "/downloads/" in target_dir:
+            sub = target_dir.split("/downloads/")[-1]
+        else:
+            sub = os.path.basename(target_dir)
+
+        local_fallback = os.path.abspath(os.path.join("downloads", sub))
+        os.makedirs(local_fallback, exist_ok=True)
+
+        print("\n" + "!" * 62)
+        print("⚠️  IZIN PENYIMPANAN ANDROID BELUM DIBERIKAN!")
+        print(f"   Target gagal diakses : {target_dir}")
+        print("💡 AGAR TERSIMPAN KE DOWNLOAD/GALERI HP:")
+        print("   Jalankan perintah ini di Termux:")
+        print("   👉 termux-setup-storage")
+        print("   Lalu klik 'Izinkan' (Allow) pada pop-up Android.")
+        print(f"🔄 File dialihkan sementara ke folder lokal: {local_fallback}/")
+        print("!" * 62 + "\n")
+        return local_fallback
+
+
+def get_ffmpeg_path():
+    """Mendeteksi lokasi binary ffmpeg di Termux atau Linux."""
+    path = shutil.which('ffmpeg')
+    if path:
+        return path
+    termux_candidates = [
+        '/data/data/com.termux/files/usr/bin/ffmpeg',
+        os.path.expanduser('~/../usr/bin/ffmpeg'),
+        '/system/bin/ffmpeg',
+    ]
+    for p in termux_candidates:
+        if os.path.exists(p) and os.access(p, os.X_OK):
+            return p
+    return None
+
+
+def check_environment():
+    """Memeriksa kesiapan lingkungan (Storage & FFmpeg) dan menampilkan panduan jika belum siap."""
+    base_dir = get_base_download_dir()
+    has_shared_storage = ("/storage/emulated/0" in base_dir or "/shared/" in base_dir)
+    has_ffmpeg = bool(get_ffmpeg_path())
+
+    issues = []
+    if not has_shared_storage:
+        issues.append("📁 Izin Penyimpanan: Belum ada izin storage HP. Jalankan 'termux-setup-storage' di Termux.")
+    if not has_ffmpeg:
+        issues.append("🎬 FFmpeg: Belum terpasang (Wajib untuk 1080p & MP3). Jalankan 'pkg install ffmpeg -y'.")
+
+    if issues:
+        print("\n" + "=" * 62)
+        print("  ⚠️  CATATAN PERSIAPAN PERANGKAT INI:")
+        for issue in issues:
+            print(f"  • {issue}")
+        print("=" * 62)
 
 
 # ==============================================================================
@@ -238,15 +330,32 @@ def download_with_ytdlp(url, output_dir=None, platform_name="Universal", format_
     clean_url = extract_clean_url(url)
     if not output_dir:
         output_dir = os.path.join(BASE_DOWNLOAD_DIR, platform_name)
-    os.makedirs(output_dir, exist_ok=True)
 
-    # Deteksi ffmpeg di PATH atau Termux binary
-    ffmpeg_path = shutil.which('ffmpeg')
-    if not ffmpeg_path and os.path.exists('/data/data/com.termux/files/usr/bin/ffmpeg'):
-        ffmpeg_path = '/data/data/com.termux/files/usr/bin/ffmpeg'
+    # Pastikan folder bisa ditulis (fallback otomatis jika Permission Denied di Android)
+    output_dir = safe_ensure_dir(output_dir)
 
-    if not format_spec:
-        format_spec = 'bestvideo*+bestaudio/best'
+    ffmpeg_path = get_ffmpeg_path()
+    has_ffmpeg = bool(ffmpeg_path)
+
+    if not has_ffmpeg:
+        print("\n" + "!" * 62)
+        print("⚠️  PAKET 'ffmpeg' TIDAK DITEMUKAN DI PERANGKAT INI!")
+        print("   YouTube memisahkan video kualitas tinggi (1080p) & audio.")
+        print("   Tanpa ffmpeg, format terpisah tidak bisa digabung.")
+        print("💡 SOLUSI AGAR BISA 1080p, 720p HD & MP3:")
+        print("   Jalankan perintah ini di terminal Termux:")
+        print("   👉 pkg install ffmpeg -y")
+        print("🔄 Otomatis mengunduh format langsung terbaik (single-stream)...")
+        print("!" * 62 + "\n")
+
+        # Format tanpa merge (progressive stream) agar TIDAK error di yt-dlp
+        if is_audio:
+            format_spec = 'bestaudio/best'
+        else:
+            format_spec = 'best[ext=mp4]/best'
+    else:
+        if not format_spec:
+            format_spec = 'bestvideo*+bestaudio/best'
 
     ydl_opts = {
         'outtmpl': os.path.join(output_dir, '%(title).80B [%(id)s].%(ext)s'),
@@ -255,23 +364,23 @@ def download_with_ytdlp(url, output_dir=None, platform_name="Universal", format_
         'quiet': False,
         'no_warnings': False,
     }
-    if ffmpeg_path:
+
+    if has_ffmpeg:
         ydl_opts['ffmpeg_location'] = ffmpeg_path
+        if is_audio:
+            ydl_opts['postprocessors'] = [{
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': 'mp3',
+                'preferredquality': '192',
+            }]
+        else:
+            ydl_opts['merge_output_format'] = 'mp4'
 
     # Gunakan cookiefile jika tersedia
     for cookie_name in ['cookies.txt', 'youtube_cookies.txt']:
         if os.path.exists(cookie_name):
             ydl_opts['cookiefile'] = cookie_name
             break
-
-    if is_audio:
-        ydl_opts['postprocessors'] = [{
-            'key': 'FFmpegExtractAudio',
-            'preferredcodec': 'mp3',
-            'preferredquality': '192',
-        }]
-    else:
-        ydl_opts['merge_output_format'] = 'mp4'
 
     print(f"\n[+] Mengunduh via Universal Engine (yt-dlp)...")
     print(f"[+] Target Platform : {platform_name}")
@@ -289,9 +398,14 @@ def download_with_ytdlp(url, output_dir=None, platform_name="Universal", format_
             print(f"[✓] Tersimpan di      : {output_dir}/")
             return True, title
     except Exception as e:
+        err_msg = str(e)
         print("-" * 55)
-        print(f"[!] Gagal download: {e}")
-        return False, str(e)
+        print(f"[!] Gagal download: {err_msg}")
+        if "ffmpeg is not installed" in err_msg:
+            print("\n💡 Tips: Instal FFmpeg dengan perintah: pkg install ffmpeg -y")
+        elif "Permission denied" in err_msg:
+            print("\n💡 Tips: Izinkan storage dengan perintah: termux-setup-storage")
+        return False, err_msg
 
 
 def handle_universal_download(link):
@@ -322,7 +436,7 @@ def handle_universal_download(link):
 
     # Kasus: Postingan / Reels Instagram
     if platform == 'Instagram':
-        target_dir = os.path.join(BASE_DOWNLOAD_DIR, "Instagram")
+        target_dir = safe_ensure_dir(os.path.join(BASE_DOWNLOAD_DIR, "Instagram"))
         cookies_dict = load_cookies(prompt_if_missing=False)
         if cookies_dict:
             print("[+] Menggunakan sesi login cookies.json untuk Instagram...")
@@ -333,8 +447,7 @@ def handle_universal_download(link):
             if not username or username == "Unknown_User":
                 username = "Instagram_Downloads"
 
-            user_dir = os.path.join(target_dir, username)
-            os.makedirs(user_dir, exist_ok=True)
+            user_dir = safe_ensure_dir(os.path.join(target_dir, username))
 
             sukses, pesan = download_post_media(clean_url, user_dir, cookies_dict)
             if sukses:
@@ -353,7 +466,7 @@ def handle_universal_download(link):
     # Kasus: YouTube (Pilihan Resolusi 1080p, 720p, 480p, dll)
     if platform == 'YouTube':
         format_spec, is_audio, quality_label = prompt_youtube_quality()
-        target_dir = os.path.join(BASE_DOWNLOAD_DIR, "YouTube")
+        target_dir = safe_ensure_dir(os.path.join(BASE_DOWNLOAD_DIR, "YouTube"))
         download_with_ytdlp(
             clean_url,
             output_dir=target_dir,
@@ -365,7 +478,7 @@ def handle_universal_download(link):
         return
 
     # Kasus: Semua Platform Lain (TikTok, X/Twitter, FB, Pinterest, Reddit, dll)
-    target_dir = os.path.join(BASE_DOWNLOAD_DIR, platform)
+    target_dir = safe_ensure_dir(os.path.join(BASE_DOWNLOAD_DIR, platform))
     download_with_ytdlp(clean_url, output_dir=target_dir, platform_name=platform)
 
 
@@ -628,8 +741,7 @@ def run_instagram_profile_scraper(username, max_scroll=None):
             print("[!] Tidak ada postingan yang ditemukan.")
             return
 
-        target_dir = os.path.join(BASE_DOWNLOAD_DIR, "Instagram", username)
-        os.makedirs(target_dir, exist_ok=True)
+        target_dir = safe_ensure_dir(os.path.join(BASE_DOWNLOAD_DIR, "Instagram", username))
         print(f"[+] Folder Output: '{target_dir}'")
 
         print(f"\n[+] Mulai Mengecek dan Mendownload Media...")
@@ -658,12 +770,15 @@ def run_instagram_profile_scraper(username, max_scroll=None):
 # ==============================================================================
 
 if __name__ == "__main__":
+    check_environment()
+
     while True:
+        current_storage = get_base_download_dir()
         print("\n" + "="*60)
         print("  🌟 HYBRID UNIVERSAL & INSTAGRAM DOWNLOADER (TERMUX) 🌟")
         print("="*60)
         print("Mendukung: YouTube, TikTok, Instagram, Twitter/X, FB, dll.")
-        print(f"📁 Lokasi Simpan: {BASE_DOWNLOAD_DIR}")
+        print(f"📁 Lokasi Simpan: {current_storage}")
         print("\nPilih Mode:")
         print(" [1] ⚡ Universal Downloader (Tempel link apa saja)")
         print(" [2] 📸 Instagram Profile (Light - 12 Postingan Terbaru)")
