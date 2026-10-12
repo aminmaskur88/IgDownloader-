@@ -19,11 +19,12 @@ Tool otomasi *all-in-one* berbasis Python yang dirancang khusus untuk berjalan s
 ## ✨ Fitur Utama
 
 - **⚡ Universal Auto-Detection**: Tempel link apa saja (YouTube, TikTok, Twitter/X, Facebook, Reddit, Pinterest, Threads, dll), sistem otomatis mendeteksi platform dan langsung mengunduh dengan kualitas terbaik.
+- **🎬 Selector Kualitas YouTube (1080p FHD)**: Khusus unduhan YouTube (Video & Shorts), tersedia menu pilihan resolusi: **1080p (Full HD)**, **720p (HD)**, **480p**, **360p**, **Kualitas Maksimal**, hingga **Ekstrak Audio MP3**.
 - **🚀 Fast & Light (Tanpa Browser)**: Unduhan media tunggal menggunakan engine `yt-dlp` tanpa perlu menyalakan Chromium Selenium, sehingga sangat cepat, hemat kuota RAM, dan anti-lag di Android.
-- **🎬 High Quality + FFmpeg Support**: Otomatis menggabungkan video & audio resolusi tertinggi (1080p, 2K, 4K) ke format `.mp4`.
+- **🎥 High Quality + FFmpeg Support**: Otomatis menggabungkan video & audio resolusi tinggi (1080p, 2K, 4K) ke format `.mp4` kompatibel galeri Android.
 - **📸 Instagram Deep Scraper**: Tetap mendukung *scraping* feed massal Instagram dengan Selenium Headless Chromium dan download seluruh slide foto/video (*Carousel*) via Instaloader.
 - **🍪 Smart Cookie Session**: Cookie hanya diminta jika Anda menggunakan fitur Instagram yang membutuhkannya (misal scrape profil atau post privat). Untuk unduh YouTube, TikTok, dll, bisa langsung jalan tanpa login!
-- **🗂️ Auto-Directory Organizer**: Output unduhan otomatis dikelompokkan rapi ke dalam folder masing-masing platform (misal `downloads/YouTube/`, `downloads/TikTok/`, `downloads/Instagram/`).
+- **🗂️ Auto-Directory Organizer**: Output unduhan otomatis dikelompokkan rapi ke dalam folder masing-masing platform (misal `/storage/emulated/0/Download/YouTube/`, `TikTok/`, `Instagram/`).
 
 ---
 

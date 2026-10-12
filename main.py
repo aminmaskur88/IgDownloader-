@@ -157,7 +157,80 @@ def get_shortcode_from_url(url):
 # 2. UNIVERSAL DOWNLOAD ENGINE (yt-dlp + ffmpeg)
 # ==============================================================================
 
-def download_with_ytdlp(url, output_dir=None, platform_name="Universal"):
+YOUTUBE_QUALITY_PRESETS = {
+    '1': {
+        'label': '1080p (Full HD - Rekomendasi)',
+        'format': 'bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1080]+bestaudio/bestvideo[width<=1080]+bestaudio/best[height<=1080]/best',
+        'is_audio': False,
+    },
+    '2': {
+        'label': '720p (HD)',
+        'format': 'bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=720]+bestaudio/bestvideo[width<=720]+bestaudio/best[height<=720]/best',
+        'is_audio': False,
+    },
+    '3': {
+        'label': '480p (Standar / Hemat Kuota)',
+        'format': 'bestvideo[height<=480][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=480]+bestaudio/bestvideo[width<=480]+bestaudio/best[height<=480]/best',
+        'is_audio': False,
+    },
+    '4': {
+        'label': '360p (Rendah / Super Hemat)',
+        'format': 'bestvideo[height<=360][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=360]+bestaudio/bestvideo[width<=360]+bestaudio/best[height<=360]/best',
+        'is_audio': False,
+    },
+    '5': {
+        'label': 'Kualitas Tertinggi (Maksimal / Best Available)',
+        'format': 'bestvideo*+bestaudio/best',
+        'is_audio': False,
+    },
+    '6': {
+        'label': 'Audio Saja (MP3)',
+        'format': 'bestaudio/best',
+        'is_audio': True,
+    },
+}
+
+
+def prompt_youtube_quality():
+    """Menampilkan pilihan kualitas khusus untuk download YouTube."""
+    print("\n" + "="*50)
+    print("  🎬 PILIH KUALITAS DOWNLOAD YOUTUBE")
+    print("="*50)
+    print(" [1] 1080p (Full HD - Rekomendasi)")
+    print(" [2] 720p (HD)")
+    print(" [3] 480p (Standar / Hemat Kuota)")
+    print(" [4] 360p (Rendah / Super Hemat)")
+    print(" [5] Kualitas Tertinggi (Maksimal / Best Available)")
+    print(" [6] Audio Saja (MP3)")
+    print("-" * 50)
+    
+    try:
+        pilihan = input("Pilih kualitas (1-6 / Enter untuk 1080p): ").strip().lower()
+    except (KeyboardInterrupt, EOFError):
+        pilihan = '1'
+
+    # Mapping fleksibel jika pengguna mengetik nomor menu atau resolusinya langsung
+    if pilihan in ['1', '1080', '1080p', '']:
+        key = '1'
+    elif pilihan in ['2', '720', '720p']:
+        key = '2'
+    elif pilihan in ['3', '480', '480p']:
+        key = '3'
+    elif pilihan in ['4', '360', '360p']:
+        key = '4'
+    elif pilihan in ['5', 'max', 'best', 'tertinggi']:
+        key = '5'
+    elif pilihan in ['6', 'mp3', 'audio']:
+        key = '6'
+    else:
+        print(f"[!] Pilihan '{pilihan}' tidak dikenal. Menggunakan default: 1080p.")
+        key = '1'
+
+    selected = YOUTUBE_QUALITY_PRESETS[key]
+    return selected['format'], selected['is_audio'], selected['label']
+
+
+def download_with_ytdlp(url, output_dir=None, platform_name="Universal", format_spec=None, is_audio=False, quality_label=None):
     """
     Mendownload media dari ribuan platform (YouTube, TikTok, FB, X, dll) menggunakan yt-dlp.
     Hasil otomatis disimpan di direktori output_dir.
@@ -172,10 +245,12 @@ def download_with_ytdlp(url, output_dir=None, platform_name="Universal"):
     if not ffmpeg_path and os.path.exists('/data/data/com.termux/files/usr/bin/ffmpeg'):
         ffmpeg_path = '/data/data/com.termux/files/usr/bin/ffmpeg'
 
+    if not format_spec:
+        format_spec = 'bestvideo*+bestaudio/best'
+
     ydl_opts = {
         'outtmpl': os.path.join(output_dir, '%(title).80B [%(id)s].%(ext)s'),
-        'format': 'bestvideo*+bestaudio/best',
-        'merge_output_format': 'mp4',
+        'format': format_spec,
         'noplaylist': True,
         'quiet': False,
         'no_warnings': False,
@@ -183,8 +258,25 @@ def download_with_ytdlp(url, output_dir=None, platform_name="Universal"):
     if ffmpeg_path:
         ydl_opts['ffmpeg_location'] = ffmpeg_path
 
+    # Gunakan cookiefile jika tersedia
+    for cookie_name in ['cookies.txt', 'youtube_cookies.txt']:
+        if os.path.exists(cookie_name):
+            ydl_opts['cookiefile'] = cookie_name
+            break
+
+    if is_audio:
+        ydl_opts['postprocessors'] = [{
+            'key': 'FFmpegExtractAudio',
+            'preferredcodec': 'mp3',
+            'preferredquality': '192',
+        }]
+    else:
+        ydl_opts['merge_output_format'] = 'mp4'
+
     print(f"\n[+] Mengunduh via Universal Engine (yt-dlp)...")
     print(f"[+] Target Platform : {platform_name}")
+    if quality_label:
+        print(f"[+] Kualitas Pilihan: {quality_label}")
     print(f"[+] Folder Output   : {output_dir}/")
     print("-" * 55)
 
@@ -258,7 +350,21 @@ def handle_universal_download(link):
             print("\n[💡 TIPS] Jika konten Instagram ini bersifat privat, silakan siapkan cookies.json.")
         return
 
-    # Kasus: Semua Platform Lain (YouTube, TikTok, X/Twitter, FB, Pinterest, Reddit, dll)
+    # Kasus: YouTube (Pilihan Resolusi 1080p, 720p, 480p, dll)
+    if platform == 'YouTube':
+        format_spec, is_audio, quality_label = prompt_youtube_quality()
+        target_dir = os.path.join(BASE_DOWNLOAD_DIR, "YouTube")
+        download_with_ytdlp(
+            clean_url,
+            output_dir=target_dir,
+            platform_name="YouTube",
+            format_spec=format_spec,
+            is_audio=is_audio,
+            quality_label=quality_label
+        )
+        return
+
+    # Kasus: Semua Platform Lain (TikTok, X/Twitter, FB, Pinterest, Reddit, dll)
     target_dir = os.path.join(BASE_DOWNLOAD_DIR, platform)
     download_with_ytdlp(clean_url, output_dir=target_dir, platform_name=platform)
 
